@@ -1,0 +1,124 @@
+Compiling STP. The klee website says to use SVN revision 940; however, this
+does not support 64-bit systems, and compiles with -m32, leading to errors in
+the standard headers such as
+    fatal error: sys/cdefs.h: No such file or directory
+if 32-bit development libraries are not installed. It may be possible to build
+32-bit code, but I didn't want that. I found this thread:
+    https://www.mail-archive.com/klee-dev@imperial.ac.uk/msg01453.html
+which says to use SVN revision 1180. Indeed, 64-bit support (in the form of the
+--with-fpic configure flag) appears to have been added around revision 1135,
+but that revision is unstable so use 1180.
+
+Then, compiling 1180 leads to two problems. First, it uses (in fact, all
+revisions of STP from 940 to head are the same) the bison #define
+YYPARSE_PARAM, which was deprecated in bison 1.8 and exists in bison 2.5 and
+2.7 -- unfortunately, I am using bison 3.0 now. It is possible to use the new
+bison construct instead, i.e. %parse-param, as described here:
+    https://github.com/upverter/ADMS/issues/6
+The patch for r1180 is as follows (same patch works on other versions, just
+change all the .y files in src/parser):
+
+
+Index: src/parser/cvc.y
+===================================================================
+--- src/parser/cvc.y    (revision 1190)
++++ src/parser/cvc.y    (working copy)
+@@ -31,10 +31,15 @@
+     cout << "syntax error: line " << cvclineno << "\n" << s << endl;
+     FatalError("");
+     return YY_EXIT_FAILURE;
+-  };
++  }
++  int yyerror(void *, const char *s) {
++    return yyerror(s);
++  }
+
+   %}
+
++%parse-param {void *AssertsQuery};
++
+ %union {
+
+   unsigned int uintval;                 /* for numerals in types. */
+Index: src/parser/smt.y
+===================================================================
+--- src/parser/smt.y    (revision 1190)
++++ src/parser/smt.y    (working copy)
+@@ -54,6 +54,9 @@
+     FatalError("");
+     return 1;
+   } 
++  int yyerror(void *, const char *s) {
++    return yyerror(s);
++  }
+
+   ASTNode query;
+ #define YYLTYPE_IS_TRIVIAL 1
+@@ -63,6 +66,8 @@
+ #define YYPARSE_PARAM AssertsQuery
+   %}
+
++%parse-param {void *AssertsQuery};
++
+ %union {
+   // FIXME: Why is this not an UNSIGNED int?
+   int uintval;                  /* for numerals in types. */
+
+
+This patch introduces an AssertsQuery parameter to the yyparse functions,
+since some rules use the parameter directly. It could be of type ASTVec*, but
+original support in earlier bisons was only for void*, so we use void* to
+avoid introducing casts later. We could also use %lex-param to add an argument
+to the yylex functions, which would be cleaner code, but requires changing the
+lexers as well as the parsers.
+
+There is one additional issue with revision 1180, it uses non-standard variable
+initializers in function definitions (not declarations). To fix that for modern
+g++'s without -fpermissive, use this patch:
+
+
+Index: src/to-sat/BitBlaster.cpp
+===================================================================
+--- src/to-sat/BitBlaster.cpp   (revision 1180)
++++ src/to-sat/BitBlaster.cpp   (working copy)
+@@ -1049,7 +1049,7 @@
+ // partial products.
+ template <class BBNode, class BBNodeManagerT>
+ void BitBlaster<BBNode,BBNodeManagerT>::buildAdditionNetworkResult(stack<BBNode>* products, set<BBNode>& support,
+-               const int bitWidth, const int i, const int minTrue = 0, const int maxTrue = ((unsigned)~0) >> 1 )
++               const int bitWidth, const int i, const int minTrue, const int maxTrue)
+ {
+       while (products[i].size() >= 2) {
+               BBNode c;
+@@ -1358,7 +1358,7 @@
+     void
+     BitBlaster<BBNode, BBNodeManagerT>::mult_SortingNetwork(
+         BBNodeSet& support, const int bitWidth, const int width, stack<BBNode> * products, int i
+-        , const int minTrue = 0, const int maxTrue = ((unsigned)~0) >> 1 )
++        , const int minTrue, const int maxTrue)
+     {
+       assert(i<bitWidth);
+       const int height = products[i].size();
+Index: src/to-sat/BitBlaster.h
+===================================================================
+--- src/to-sat/BitBlaster.h     (revision 1180)
++++ src/to-sat/BitBlaster.h     (working copy)
+@@ -82,10 +82,10 @@
+
+         void
+         mult_SortingNetwork(
+-            set<BBNode>& support, const int bitWidth, const int width, stack<BBNode> * products, int i, const int minTrue, const int maxTrue );
++            set<BBNode>& support, const int bitWidth, const int width, stack<BBNode> * products, int i, const int minTrue = 0, const int maxTrue = ((unsigned)~0) >> 1);
+
+
+-       void buildAdditionNetworkResult(stack<BBNode>* products, set<BBNode>& support, const int bitWidth, const int index, const int minTrue, const int maxTrue );
++       void buildAdditionNetworkResult(stack<BBNode>* products, set<BBNode>& support, const int bitWidth, const int index, const int minTrue = 0, const int maxTrue = ((unsigned)~0) >> 1 );
+        vector<BBNode> buildAdditionNetworkResult(stack<BBNode>* products, set<BBNode>& support, int bitWidth);
+
+        vector<BBNode> BBAndBit(const vector<BBNode>& y, BBNode b);
+
+
+In conclusion:
+- r940: doesn't work on 64-bit, requires bison patch
+- r1180: works on 64-bit, requires bison patch, requires arguments patch
+- r16xx (head): works on 64-bit, requires bison patch, segfaults with klee!
