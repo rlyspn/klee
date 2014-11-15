@@ -15,6 +15,7 @@ namespace llvm {
 
 namespace klee {
 
+class Executor;
 class Expr;
 template<class T> class ref;
 
@@ -31,8 +32,13 @@ public:
      * \param f The function to test.
      * \param arguments The arguments passed to the function.
      */
-    bool isEvaluated(ExecutionState &state, KInstruction *ki,
-        llvm::Function *f, std::vector< ref<Expr> > &arguments);
+    bool isEvaluated(Executor *executor, ExecutionState &state,
+        KInstruction *ki, llvm::Function *f,
+        std::vector< ref<Expr> > &arguments);
+
+    void makeSymbolic(Executor *executor, ExecutionState &state,
+        KInstruction *target, ref<Expr> expr,
+        const std::string &argument_name, size_t argument_size);
 };
 
 }

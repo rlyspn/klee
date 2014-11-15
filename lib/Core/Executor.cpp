@@ -1175,7 +1175,7 @@ void Executor::executeCall(ExecutionState &state,
                            KInstruction *ki,
                            Function *f,
                            std::vector< ref<Expr> > &arguments) {
-  bipath->isEvaluated(state, ki, f, arguments);
+  bipath->isEvaluated(this, state, ki, f, arguments);
 
   Instruction *i = ki->inst;
   if (f && f->isDeclaration()) {
