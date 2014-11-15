@@ -9,14 +9,16 @@
 #include "klee/ExecutionState.h"
 
 namespace llvm {
+    class Argument;
     class Function;
-    class KInstruction;
 }
 
 namespace klee {
 
 class Executor;
 class Expr;
+class KInstruction;
+
 template<class T> class ref;
 
 class Bipath {
@@ -36,9 +38,9 @@ public:
         KInstruction *ki, llvm::Function *f,
         std::vector< ref<Expr> > &arguments);
 
-    void makeSymbolic(Executor *executor, ExecutionState &state,
-        KInstruction *target, ref<Expr> expr,
-        const std::string &argument_name, size_t argument_size);
+void makeSymbolic(Executor *executor, ExecutionState &state,
+    KInstruction *target, llvm::Argument *argument, const std::string &argument_name,
+    size_t argument_size);
 };
 
 }

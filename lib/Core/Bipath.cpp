@@ -14,6 +14,7 @@
 
 #include "klee/Internal/Module/KInstruction.h"
 #include "Memory.h"  // for MemoryObject
+#include "MemoryManager.h"
 #include "Executor.h"
 #include "TimingSolver.h"
 
@@ -74,7 +75,7 @@ bool Bipath::isEvaluated(Executor *executor, ExecutionState &state,
             std::string argument_name = argument->getName().str();
 
             makeSymbolic(executor, state, ki,
-                arguments[count], argument_name, argument_size);
+                argument, argument_name, argument_size);
 
             count ++;
         }
@@ -87,49 +88,13 @@ bool Bipath::isEvaluated(Executor *executor, ExecutionState &state,
 // NOTE: this function is cloned from
 // SpecialFunctionHandler::handleMakeSymbolic()
 void Bipath::makeSymbolic(Executor *executor, ExecutionState &state,
-    KInstruction *target, ref<Expr> expr, const std::string &argument_name,
+    KInstruction *target, llvm::Argument *argument, const std::string &argument_name,
     size_t argument_size) {
 
-    ref<Expr> size_expr = ConstantExpr::alloc(
-        argument_size, Context::get().getPointerWidth());
+    MemoryObject *mo = executor->memory->allocate(argument_size, true, false, argument);
+    mo->setName(argument_name);
 
-    // look for all variables aliased to the given address
-    Executor::ExactResolutionList rl;
-    executor->resolveExact(state, expr, rl, "bipath_make_symbolic");
+    executor->executeMakeSymbolic(state, mo, argument_name);
 
-    for (Executor::ExactResolutionList::iterator it = rl.begin(), 
-        ie = rl.end(); it != ie; ++it) {
-
-        const MemoryObject *mo = it->first.first;
-        mo->setName(argument_name);  // set name to arg_*
-
-        const ObjectState *old = it->first.second;
-        ExecutionState *s = it->second;
-
-        if (old->readOnly) {
-            executor->terminateStateOnError(*s, 
-                "cannot make readonly object symbolic", 
-                "user.err");
-            return;
-        } 
-
-        // FIXME: Type coercion should be done consistently somewhere.
-        bool res;
-        bool success =
-            executor->solver->mustBeTrue(*s, 
-                EqExpr::create(ZExtExpr::create(size_expr,
-                    Context::get().getPointerWidth()),
-                  mo->getSizeExpr()),
-                res);
-        assert(success && "FIXME: Unhandled solver failure");
-
-        if (res) {
-            executor->executeMakeSymbolic(*s, mo, argument_name);
-        } else {      
-            executor->terminateStateOnError(*s, 
-                "wrong size given to klee_make_symbolic[_name]", 
-                "user.err");
-        }
-    }
 }
 #endif
