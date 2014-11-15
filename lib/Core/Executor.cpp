@@ -1175,20 +1175,7 @@ void Executor::executeCall(ExecutionState &state,
                            KInstruction *ki,
                            Function *f,
                            std::vector< ref<Expr> > &arguments) {
-  printf("Call %s() with %lu args:",
-    f->getName().data(), arguments.size());
-  for (unsigned i = 0; i < arguments.size(); i++) {
-    printf(" %08x", arguments[i]->hash());
-  }
-  printf("\n");
-
-  printf("\t\tSymbolic variables:");
-  for (unsigned i = 0; i < state.symbolics.size(); i ++) {
-    printf(" [%s]", state.symbolics[i].first->name.c_str());
-  }
-  printf("\n");
-
-  bipath->isEvaluated(f, arguments);
+  bipath->isEvaluated(state, ki, f, arguments);
 
   Instruction *i = ki->inst;
   if (f && f->isDeclaration()) {

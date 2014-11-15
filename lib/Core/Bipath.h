@@ -6,9 +6,11 @@
 #define BIPATH_H
 
 #include <vector>
+#include "klee/ExecutionState.h"
 
 namespace llvm {
     class Function;
+    class KInstruction;
 }
 
 namespace klee {
@@ -29,7 +31,8 @@ public:
      * \param f The function to test.
      * \param arguments The arguments passed to the function.
      */
-    bool isEvaluated(llvm::Function *f, std::vector< ref<Expr> > &arguments);
+    bool isEvaluated(ExecutionState &state, KInstruction *ki,
+        llvm::Function *f, std::vector< ref<Expr> > &arguments);
 };
 
 }
