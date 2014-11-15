@@ -54,6 +54,7 @@ int main() {
   
   // Make the input symbolic. 
   klee_make_symbolic(re, sizeof re, "re");
+  // klee_assume(re[SIZE - 1] == '\0');
 
   // Try to match against a constant string "hello".
   match(re, "hello");
