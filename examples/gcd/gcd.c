@@ -1,4 +1,4 @@
-// #include <klee/klee.h>
+#include <klee/klee.h>
 
 long gcd (long a, long b)
 {
@@ -18,7 +18,7 @@ int main()
     b = 119;
     c = 332;
     
-    klee_make_symbolic(&d, sizeof(d), "d");
+    klee_make_symbolic(&b, sizeof(b), "b");
     gcd(a, b);
     gcd(b, d);
     gcd(a, c);

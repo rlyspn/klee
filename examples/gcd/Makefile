@@ -1,5 +1,5 @@
 CC=llvm-gcc
-INC=../../klee/include
+INC=../../include
 FLAGS=-emit-llvm -g -c
 
 .PHONY: klee
