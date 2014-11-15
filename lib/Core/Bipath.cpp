@@ -4,6 +4,8 @@
 
 #include "Bipath.h"
 
+#include <stdio.h>
+
 using namespace klee;
 using namespace llvm;
 
@@ -15,6 +17,6 @@ Bipath::~Bipath() {
     /* TODO */
 }
 
-bool Bipath::isEvaluated(const llvm::Function *f, const std::vector< ref<Expr> > &arguments) {
+bool Bipath::isEvaluated(llvm::Function *f, std::vector< ref<Expr> > &arguments) {
     return false;
 }

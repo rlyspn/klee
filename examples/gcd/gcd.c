@@ -13,14 +13,15 @@ long gcd (long a, long b)
 
 int main()
 {
-    long a, b, c;
+    long a, b, c, d;
     a = 17;
     b = 119;
     c = 332;
     
-    // klee_make_symbolic(&b, sizeof(b), "b");
+    klee_make_symbolic(&d, sizeof(d), "d");
     gcd(a, b);
-    gcd(b, c);
+    gcd(b, d);
     gcd(a, c);
+    gcd(d, a);
     // gcd(c, b);
 }

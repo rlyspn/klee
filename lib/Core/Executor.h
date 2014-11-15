@@ -15,6 +15,8 @@
 #ifndef KLEE_EXECUTOR_H
 #define KLEE_EXECUTOR_H
 
+#include "Bipath.h"
+
 #include "klee/ExecutionState.h"
 #include "klee/Interpreter.h"
 #include "klee/Internal/Module/Cell.h"
@@ -72,6 +74,7 @@ namespace klee {
   class TreeStreamWriter;
   template<class T> class ref;
 
+  class Bipath;
 
 
   /// \todo Add a context object to keep track of data only live
@@ -178,6 +181,9 @@ private:
   /// The maximum time to allow for a single core solver query.
   /// (e.g. for a single STP query)
   double coreSolverTimeout; 
+
+  // Contains all functionality related to Bipath.
+  Bipath *bipath;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);

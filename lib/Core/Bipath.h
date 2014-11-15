@@ -3,7 +3,7 @@
  */
 
 #ifndef BIPATH_H
-#define BITPATH_H
+#define BIPATH_H
 
 #include <vector>
 
@@ -17,6 +17,8 @@ class Expr;
 template<class T> class ref;
 
 class Bipath {
+
+public:
     Bipath();
     ~Bipath();
 
@@ -27,7 +29,7 @@ class Bipath {
      * \param f The function to test.
      * \param arguments The arguments passed to the function.
      */
-    bool isEvaluated(const llvm::Function *f, const std::vector< ref<Expr> > &arguments);
+    bool isEvaluated(llvm::Function *f, std::vector< ref<Expr> > &arguments);
 };
 
 }

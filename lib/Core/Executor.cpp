@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Bipath.h"
 #include "Common.h"
 #include "Executor.h"
 #include "Context.h"
@@ -295,11 +296,14 @@ Executor::Executor(const InterpreterOptions &opts,
     coreSolverTimeout(MaxCoreSolverTime != 0 && MaxInstructionTime != 0
       ? std::min(MaxCoreSolverTime,MaxInstructionTime)
       : std::max(MaxCoreSolverTime,MaxInstructionTime)) {
+  printf("CREATING EXECUTOR.\n");
       
   if (coreSolverTimeout) UseForkedCoreSolver = true;
   
   Solver *coreSolver = NULL;
-  
+
+  bipath = new Bipath();
+
 #ifdef SUPPORT_METASMT
   if (UseMetaSMT != METASMT_BACKEND_NONE) {
     
@@ -1175,6 +1179,7 @@ void Executor::executeCall(ExecutionState &state,
   for (unsigned i = 0; i < arguments.size(); i++) {
       printf("\targument[i] constant: %08x.\n", arguments[i]->hash());
   }
+  bipath->isEvaluated(f, arguments);
 
   printf("Symbolics:\n");
   state.dumpSymbolics(outs());
