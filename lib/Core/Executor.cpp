@@ -1171,10 +1171,10 @@ void Executor::executeCall(ExecutionState &state,
                            KInstruction *ki,
                            Function *f,
                            std::vector< ref<Expr> > &arguments) {
-  printf("Executing: %s(%d)\n", f->getName().data(), 
+  printf("Executing: %s(%lu)\n", f->getName().data(), 
           arguments.size());
-  for (int i = 0; i < arguments.size(); i++) {
-      printf("\targument[i] constant: %u.\n", arguments[i]->hash());
+  for (unsigned i = 0; i < arguments.size(); i++) {
+      printf("\targument[i] constant: %08x.\n", arguments[i]->hash());
   }
 
   Instruction *i = ki->inst;
