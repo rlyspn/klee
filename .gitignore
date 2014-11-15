@@ -6,6 +6,7 @@ Output/
 
 cscope.*
 *~
+*.swp
 
 *.log
 *.sum
@@ -19,3 +20,5 @@ site.exp
 
 # Site file for llvm-lit
 lit.site.cfg
+
+/examples/*/klee-*
