@@ -1171,11 +1171,13 @@ void Executor::executeCall(ExecutionState &state,
                            KInstruction *ki,
                            Function *f,
                            std::vector< ref<Expr> > &arguments) {
-  printf("Executing: %s(%lu)\n", f->getName().data(), 
-          arguments.size());
+  printf("Executing: %s(%lu)\n", f->getName().data(), arguments.size());
   for (unsigned i = 0; i < arguments.size(); i++) {
       printf("\targument[i] constant: %08x.\n", arguments[i]->hash());
   }
+
+  printf("Symbolics:\n");
+  state.dumpSymbolics(outs());
 
   Instruction *i = ki->inst;
   if (f && f->isDeclaration()) {

@@ -382,3 +382,9 @@ void ExecutionState::dumpStack(llvm::raw_ostream &out) const {
     target = sf.caller;
   }
 }
+
+void ExecutionState::dumpSymbolics(llvm::raw_ostream &out) const {
+  for(unsigned i = 0; i < symbolics.size(); i ++) {
+    out << "\t[" << symbolics[i].first->name << "] is symbolic\n";
+  }
+}
