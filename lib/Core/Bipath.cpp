@@ -74,8 +74,10 @@ bool Bipath::isEvaluated(Executor *executor, ExecutionState &state,
                 = argument->getType()->getScalarSizeInBits() / CHAR_BIT;
             std::string argument_name = argument->getName().str();
 
+#if 0
             makeSymbolic(executor, state, ki,
                 argument, argument_name, argument_size);
+#endif
 
             count ++;
         }
