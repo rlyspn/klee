@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Arguments: <klee|native> <bitcode file>
+
+mode=$1
+shift
+bitcode=$1
+shift
+
+case $mode in
+    klee)
+        cat $bitcode | klee --write-pcs --libc=uclibc --posix-runtime - $@
+        ;;
+    native)
+        cat $bitcode | lli $@
+        ;;
+    *)
+        echo "Error: TODO"
+esac
+
