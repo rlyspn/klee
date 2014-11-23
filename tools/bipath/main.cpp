@@ -56,27 +56,18 @@ static bool getPCFiles(const std::string inputDir,
 }
 
 static ref<Expr> mergeConstraints(ref<Expr> constr1, ref<Expr> constr2)
+//static ref<Expr> mergeConstraints(Expr::CreateArg arg1, Expr::CreateArg arg2)
 {
-    std::vector<Expr::CreateArg> args(2);
+    std::vector<Expr::CreateArg> args;
     Expr::CreateArg arg1(constr1);
     Expr::CreateArg arg2(constr2);
     args.push_back(arg1);
     args.push_back(arg2);
-    errs() << "Combining: \n\t";
-    ExprPPrinter::printSingleExpr(errs(), constr1);
-    errs() << "\n\t";
-    ExprPPrinter::printSingleExpr(errs(), constr2);
-    errs() << "\n";
-    errs() << args[0].isExpr() << "\n";
-    errs() << args[1].isExpr() << "\n";
-    errs() << args[0].isWidth() << "\n";
-    errs() << args[1].isWidth() << "\n";
-
-
     return Expr::createFromKind(Expr::And, args);
 }
 
-static bool rewriteConstraints(const std::string inputFile)
+static bool rewriteConstraints(const std::string inputFile,
+        std::vector<Decl*> *retDecls)
 {
     ExprBuilder *builder;
     OwningPtr<MemoryBuffer> mb;
@@ -90,40 +81,44 @@ static bool rewriteConstraints(const std::string inputFile)
     Parser *parser = Parser::Create(inputFile.c_str(), mb.get(), builder);
     parser->SetMaxErrors(BIPATH_MAX_PARSER_ERROR);
 
-    std::vector< ref<Expr> > retConstraints;
-    llvm::errs() << "Testing: " << inputFile << "\n";
     while (Decl *decl = parser->ParseTopLevelDecl()) {
-        llvm::errs() << "\t====\n\tFound Decl.\n";
         if (decl->getKind() != Decl::QueryCommandDeclKind) {
+            retDecls->push_back(decl);
             continue;
         }
+
+        std::vector< ref<Expr> > newQuery;
         QueryCommand *qc;
         qc = static_cast<QueryCommand*>(decl);
         if (qc->Constraints.size() == 0) {
             continue;
         }
         else if (qc->Constraints.size() == 1) {
-            retConstraints.push_back(qc->Constraints[0]);
+            newQuery.push_back(qc->Constraints[0]);
             continue;
         }
 
-        ref<Expr> arg1 = qc->Constraints[0];
-        ref<Expr> arg2 = qc->Constraints[1];
-        Expr::CreateArg carg2(qc->Constraints[0]);
-        errs() << carg2.isExpr() << "==\n";
         ref<Expr> currConstr = mergeConstraints(qc->Constraints[0],
                 qc->Constraints[1]);
-
         for (unsigned int i = 2; i < qc->Constraints.size() - 1; i++) {
-            //ref<Expr> newConst = mergeConstraints(currConstr, qc->Constraints[i]);
             currConstr = mergeConstraints(currConstr, qc->Constraints[i]);
         }
-        retConstraints.push_back(currConstr);
+        newQuery.push_back(currConstr);
+
+        std::vector< ref<Expr> > newConstraints;
+        std::vector< ref<Expr> > newValues;
+        std::vector< const Array * > newObjects;
+        QueryCommand *newQC = new QueryCommand(newConstraints, newQuery[0],
+                newValues, newObjects);
+        retDecls->push_back(newQC);
+
     }
-    for (int i = 0; i < retConstraints.size(); i++) {
-        ExprPPrinter::printSingleExpr(errs(), retConstraints[i]);
-    }
+
     return true;
+}
+
+static bool writeNewPCFile(std::string newFile, std::vector<Decl*> *decls)
+{
 }
 
 int main(int argc, char **argv) {
@@ -147,7 +142,9 @@ int main(int argc, char **argv) {
 
     std::vector<std::string>::iterator iter;
     for (unsigned int i = 0; i < pcsFiles.size(); i++) {
-        rewriteConstraints(pcsFiles[i]);
+        std::vector<Decl*> newDecls;
+        rewriteConstraints(pcsFiles[i], &newDecls);
+        writeNewPCFile(pcsFiles[i] + ".new", &newDecls);
     }
 
     return 1;
