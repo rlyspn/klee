@@ -1,0 +1,57 @@
+Note: for bipath to work, you must have several things in your path (or else
+modify the variables at the top of bipath-run.pl):
+- klee and kleaver (put klee/Release+Asserts/bin in your path)
+- bipath (same place as above)
+- lli (if you built llvm yourself, add its bin to the path)
+
+Here is an annotated example; it assumes you have built klee and bipath
+already.
+
+$ cd examples/filterargs
+$ make
+$ rm -rf klee-out-*
+$ ../../scripts/bipath-run.pl --force-native ./filterargs.o
+Exit code: 1
+$ ../../scripts/bipath-run.pl --force-native ./filterargs.o aaa
+Exit code: 0
+
+The program runs just fine on its own. Now, we run it with klee (and one
+symbolic argument of length 3):
+
+$ ../../scripts/bipath-run.pl --force-klee ./filterargs.o --sym-arg 3
+...
+
+This generates a directory klee-out-0. Once the target has been run at least
+once under klee, bipath can try to see if passed arguments satisfy those
+conditions:
+
+$ ../../scripts/bipath-run.pl --bipath ./filterargs.o aaa
+processing directory klee-out-0
+    processing file /tmp/bipath-temp/test000001.pc
+        found array model_version
+    processing file /tmp/bipath-temp/test000002.pc
+        found array arg0
+        found array model_version
+        matching arg 0... HASH(0x182c5a8)
+        invoke kleaver on /tmp/bipath-temp/test000002.pc.temp
+            kleaver says 'INVALID'
+    processing file /tmp/bipath-temp/test000003.pc
+        found array arg0
+        found array model_version
+        matching arg 0... HASH(0x1847960)
+        invoke kleaver on /tmp/bipath-temp/test000003.pc.temp
+            kleaver says 'INVALID'
+    processing file /tmp/bipath-temp/test000004.pc
+        found array arg0
+        found array model_version
+        matching arg 0... HASH(0x1847420)
+        invoke kleaver on /tmp/bipath-temp/test000004.pc.temp
+            kleaver says 'VALID'
+*** RUNNING NATIVE
+Exit code: 0
+
+Success! It also works with azz, zzz, etc. But if we pass an argument like
+aaaa, which is too long for the symbolic run data we have available, the
+--bipath mode will switch back to klee. Note that it will generate a klee
+output directory but (at the moment) this will not be very useful because
+it will use hard-coded concrete command-line arguments.
