@@ -104,7 +104,7 @@ static bool rewriteConstraints(const std::string inputFile,
 
         ref<Expr> currConstr = mergeConstraints(qc->Constraints[0],
                 qc->Constraints[1]);
-        for (unsigned int i = 2; i < qc->Constraints.size() - 1; i++) {
+        for (unsigned int i = 2; i < qc->Constraints.size(); i++) {
             currConstr = mergeConstraints(currConstr, qc->Constraints[i]);
         }
         newQuery.push_back(currConstr);
@@ -204,6 +204,9 @@ int main(int argc, char **argv) {
     std::string inputDir(argv[1]);
     std::string outputDir(argv[2]);
     std::vector<std::string> pcsFiles;
+
+    inputDir += '/';
+    outputDir += '/';
     
     if (!getPCFiles(inputDir, &pcsFiles)) {
         llvm::errs() << "Failed to read pc files.\n";
