@@ -99,15 +99,14 @@ static bool rewriteConstraints(const std::string inputFile,
         }
         else if (qc->Constraints.size() == 1) {
             newQuery.push_back(qc->Constraints[0]);
-            continue;
+        } else {
+            ref<Expr> currConstr = mergeConstraints(qc->Constraints[0],
+                    qc->Constraints[1]);
+            for (unsigned int i = 2; i < qc->Constraints.size(); i++) {
+                currConstr = mergeConstraints(currConstr, qc->Constraints[i]);
+            }
+            newQuery.push_back(currConstr);
         }
-
-        ref<Expr> currConstr = mergeConstraints(qc->Constraints[0],
-                qc->Constraints[1]);
-        for (unsigned int i = 2; i < qc->Constraints.size(); i++) {
-            currConstr = mergeConstraints(currConstr, qc->Constraints[i]);
-        }
-        newQuery.push_back(currConstr);
 
         std::vector< ref<Expr> > newConstraints;
         std::vector< ref<Expr> > newValues;
