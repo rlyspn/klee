@@ -10,33 +10,19 @@ my $BIPATH_HELPER = "bipath";
 my $debug = 1;
 
 sub main();
+sub write_arg_counts(@);
 sub execute($$@);
 sub bipath_is_cached($@);
+sub promote_args(@);
 
 main();
 
 sub main() {
-    my $mode = shift @ARGV;
-    my $program = shift @ARGV;
-    my @args = @ARGV;
+    my $mode = 'bipath';
 
-    if($mode eq '--force-native') {
-        execute(1, $program, @args);
-    }
-    elsif($mode eq '--force-klee') {
-        execute(0, $program, @args);
-    }
-    elsif($mode eq '--bipath') {
-        if(bipath_is_cached($program, @args)) {
-            execute(1, $program, @args);
-        }
-        else {
-            execute(0, $program, @args);
-        }
-    }
-    else {
+    if(scalar(@ARGV) < 1 || $ARGV[0] eq '--help') {
         print STDERR <<EOF;
-Usage: $0 (--force-native|--force-klee|--bipath) program [args...]
+Usage: $0 [--force-native|--force-klee|--bipath] program [args...]
 
 Runs the given program with both native and klee support. When run under
 klee, the supplied arguments will be replaced with symbolic arguments
@@ -45,6 +31,55 @@ can then be run natively.
 EOF
         exit 1;
     }
+    elsif($ARGV[0] eq '--force-native') {
+        shift @ARGV;
+        $mode = 'native';
+    }
+    elsif($ARGV[0] eq '--force-klee') {
+        shift @ARGV;
+        $mode = 'klee';
+    }
+    elsif($ARGV[0] eq '--bipath') {
+        shift @ARGV;
+        $mode = 'bipath';
+    }
+
+    my $program = shift @ARGV;
+    my @args = @ARGV;
+    my $did_klee = 0;
+
+    if($mode eq 'native') {
+        execute(1, $program, @args);
+    }
+    elsif($mode eq 'klee') {
+        execute(0, $program, @args);
+        write_arg_counts(@args);
+    }
+    else {
+        if(!bipath_is_cached($program, @args)) {
+            my @new_args = promote_args(@args);
+            execute(0, $program, @new_args);
+            write_arg_counts(@args);
+
+            if(bipath_is_cached($program, @args)) {
+                execute(1, $program, @args);
+            }
+        }
+        else {
+            # we can already run natively, just do it
+            execute(1, $program, @args);
+        }
+    }
+}
+
+sub write_arg_counts(@) {
+    my @args = @_;
+    # hack: remember how many arguments we had
+    open(COUNT, ">klee-last/arg_count") or die;
+    for my $a (@args) {
+        print COUNT length($a), "\n";
+    }
+    close COUNT;
 }
 
 sub execute($$@) {
@@ -54,9 +89,11 @@ sub execute($$@) {
     
     my $status = 0;
     if($native) {
+        print "exec: `$LLI $program @args`\n" if $debug;
         $status = system("$LLI $program @args") >> 8;
     }
     else {
+        print "exec: `$KLEE $program @args`\n" if $debug;
         $status = system("$KLEE $program @args") >> 8;
     }
     print "Exit code: $status\n" if $debug;
@@ -72,6 +109,7 @@ sub bipath_is_cached($@) {
         my $TEMP_DIR = "/tmp/bipath-temp";
 
         # helper: convert query form
+        unlink (glob ("$TEMP_DIR/*"));
         system("$BIPATH_HELPER $dir $TEMP_DIR");
         
         for my $file (glob "$TEMP_DIR/*.pc") {
@@ -128,7 +166,11 @@ sub bipath_is_cached($@) {
                             && $array->{'init'} eq 'symbolic') {
 
                             my @numbers = map(ord, split(//, $arg));
-                            push @numbers, 0;  # add null terminator
+                            my $padding = $array->{'size'} - length($arg);
+                            for (1..$padding) {
+                                push @numbers, 0;  # null terminator, padding
+                            }
+
                             $array->{'init'} = "[" . join(' ', @numbers) . "]";
                             $found = 1;
                         }
@@ -136,7 +178,26 @@ sub bipath_is_cached($@) {
                 }
 
                 $suitable = 0 if !$found;
-                last if !$suitable;
+                #last if !$suitable;  # keep going in case arg_count makes it suitable
+            }
+
+            if(open(COUNT, "<$dir/arg_count")) {
+                print "        reading [$dir/arg_count]\n" if $debug;
+                my $s = 1;
+                for my $a (0..$#args) {
+                    my $count = <COUNT>;
+                    if(!defined($count)) {
+                        $s = 0;
+                        last;
+                    }
+                    chomp $count;
+                    if(length($args[$a]) > int $count) {
+                        $s = 0;
+                        last;
+                    }
+                }
+                $suitable = 1 if $s == 1;
+                close COUNT;
             }
 
             # if still suitable, write temp file and call kleaver
@@ -173,4 +234,12 @@ sub bipath_is_cached($@) {
 
     print "*** RUNNING IN KLEE\n" if $debug;
     return 0;
+}
+
+sub promote_args(@) {
+    my @out = ();
+    for my $a (@_) {
+        push @out, "--sym-arg", length($a);
+    }
+    return @out;
 }

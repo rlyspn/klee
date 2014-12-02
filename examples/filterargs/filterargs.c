@@ -12,7 +12,9 @@ size_t my_strlen(const char *s) {
 int main(int argc, char *argv[]) {
     // Only returns 0 when one argument is passed, and that argument
     // begins with 'a' and is three characters long.
-    if(argc == 2 && my_strlen(argv[1]) == 3 && argv[1][0] == 'a') {
+    if(argv[1] && !argv[2]
+	&& my_strlen(argv[1]) == 3 && argv[1][0] == 'a') {
+
         return 0;
     }
 
