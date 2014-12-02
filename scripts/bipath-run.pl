@@ -89,8 +89,19 @@ sub execute($$@) {
     
     my $status = 0;
     if($native) {
-        print "exec: `$LLI $program @args`\n" if $debug;
-        $status = system("$LLI $program @args") >> 8;
+        $program =~ /(.*)\.bc/;
+        my $binary = $1;
+        if(-x $binary) {
+            if($binary !~ m|/|) {
+                $binary = "./$binary";
+            }
+            print "exec: `$binary @args`\n" if $debug;
+            $status = system("$binary @args") >> 8;
+        }
+        else {
+            print "exec: `$LLI $program @args`\n" if $debug;
+            $status = system("$LLI $program @args") >> 8;
+        }
     }
     else {
         print "exec: `$KLEE $program @args`\n" if $debug;
