@@ -3,11 +3,14 @@
 use strict;
 use warnings;
 
+use Time::HiRes qw/ time /;
+
 my $KLEE = "klee --write-pcs --libc=uclibc --posix-runtime";
 my $KLEAVER = "kleaver";
 my $LLI = "lli";
 my $BIPATH_HELPER = "bipath";
 my $debug = 1;
+my $with_time = 1;
 
 sub main();
 sub write_arg_counts(@);
@@ -96,16 +99,27 @@ sub execute($$@) {
                 $binary = "./$binary";
             }
             print "exec: `$binary @args`\n" if $debug;
+
+            my $native_start_time = time;
             $status = system("$binary @args") >> 8;
+            my $native_end_time = time;
+            print "BipathTime(native): `($native_end_time - $native_start_time)`" if $with_time;
         }
         else {
             print "exec: `$LLI $program @args`\n" if $debug;
+            my $lli_start_time = time;
             $status = system("$LLI $program @args") >> 8;
+            my $lli_end_time = time;
+            print "BipathTime(lli): `($lli_end_time - $lli_start_time)`" if $with_time;
         }
     }
     else {
         print "exec: `$KLEE $program @args`\n" if $debug;
+
+        my $klee_start_time = time;
         $status = system("$KLEE $program @args") >> 8;
+        my $klee_end_time = time;
+        print "BipathTime(klee): `($klee_end_time - $klee_start_time)`" if $with_time;
     }
     print "Exit code: $status\n" if $debug;
 }
@@ -114,8 +128,10 @@ sub bipath_is_cached($@) {
     my $program = shift @_;
     my @args = @_;
 
+    my $bipath_start_time = time;
+
     # slurp in all test data from previous symbolic runs
-    for my $dir (glob "klee-out-*") {
+    for my $dir (glob "/klee-out-*") {
         print "processing directory $dir\n" if $debug;
         my $TEMP_DIR = "/tmp/bipath-temp";
 
@@ -234,6 +250,8 @@ sub bipath_is_cached($@) {
                         print "            kleaver says '$1'\n";
                         if($1 eq 'VALID') {
                             print "*** RUNNING NATIVE\n" if $debug;
+                            my $bipath_end_time = time;
+                            print "BipathTime(bipath): `($bipath_end_time - $bipath_start_time)`" if $with_time;
                             return 1;   # success! satisfies the constraints
                         }
                     }
@@ -243,6 +261,8 @@ sub bipath_is_cached($@) {
         }
     }
 
+    my $bipath_end_time = time;
+    print "BipathTime(bipath): `($bipath_end_time - $bipath_start_time)`" if $with_time;
     print "*** RUNNING IN KLEE\n" if $debug;
     return 0;
 }
