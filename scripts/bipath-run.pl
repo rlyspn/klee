@@ -15,6 +15,7 @@ my $with_time = 1;
 sub main();
 sub write_arg_counts(@);
 sub execute($$@);
+sub bipath_cache_order($$);
 sub bipath_is_cached($@);
 sub promote_args(@);
 
@@ -126,6 +127,46 @@ sub execute($$@) {
     print "Exit code: $status\n" if $debug;
 }
 
+# Most recently succeeded cache. Try the kleaver test cases that were valid
+# first. Every time a successful kleaver run is found, the filename is added
+# to the success.log. This function handles duplicate filenames in the log.
+sub bipath_cache_order($$) {
+    my $temp_dir = shift @_;
+    my $dir = shift @_;
+
+    my @original = glob "$temp_dir/*.pc";
+    if(open(LOG, "<$dir/success.log")) {
+        my @success = ();
+        while(my $line = <LOG>) {
+            chomp $line;
+            if(-f "$temp_dir/$line") {
+                push @success, "$temp_dir/$line";
+            }
+        }
+        close LOG;
+        print "    found success.log with ", scalar(@success),
+            " previous runs\n" if $debug;
+        @success = reverse @success;
+        push @success, @original;
+
+        my @new = ();
+        for my $f (@success) {
+            my $found = 0;
+            for (@new) {
+                if($f eq $_) {
+                    $found = 1;
+                    last;
+                }
+            }
+            if(!$found) {
+                push @new, $f;
+            }
+        }
+        return @new;
+    }
+    return @original;
+}
+
 sub bipath_is_cached($@) {
     my $program = shift @_;
     my @args = @_;
@@ -144,7 +185,9 @@ sub bipath_is_cached($@) {
         my $bipath_time = time - $bipath_start_time;
         print "BipathTime(bipath): $bipath_time\n" if $with_time;
         
-        for my $file (glob "$TEMP_DIR/*.pc") {
+        my @order = bipath_cache_order($TEMP_DIR, $dir);
+        #print "Order: ", join(',', @order), "\n";
+        for my $file (@order) {
             print "    processing file $file\n" if $debug;
             my @arrays = ();
 
@@ -257,6 +300,12 @@ sub bipath_is_cached($@) {
                             print "*** RUNNING NATIVE\n" if $debug;
                             my $kleaver_time = time - $kleaver_start_time;
                             print "BipathTime(kleaver): $kleaver_time\n" if $with_time;
+                            close KLEAVER;
+                            if(open(LOG, ">>$dir/success.log")) {
+                                $file =~ s|.*/||;
+                                print LOG "$file\n";
+                                close LOG;
+                            }
                             return 1;   # success! satisfies the constraints
                         }
                     }
