@@ -34,6 +34,7 @@ can then be run natively.
 EOF
         exit 1;
     }
+
     elsif($ARGV[0] eq '--force-native') {
         shift @ARGV;
         $mode = 'native';
@@ -102,15 +103,16 @@ sub execute($$@) {
 
             my $native_start_time = time;
             $status = system("$binary @args") >> 8;
-            my $native_end_time = time;
-            print "BipathTime(native): `($native_end_time - $native_start_time)`" if $with_time;
+            my $native_time = time - $native_start_time;
+
+            print "BipathTime(native): $native_time\n" if $with_time;
         }
         else {
             print "exec: `$LLI $program @args`\n" if $debug;
             my $lli_start_time = time;
             $status = system("$LLI $program @args") >> 8;
-            my $lli_end_time = time;
-            print "BipathTime(lli): `($lli_end_time - $lli_start_time)`" if $with_time;
+            my $lli_time = time - $lli_start_time;
+            print "BipathTime(lli): $lli_time\n" if $with_time;
         }
     }
     else {
@@ -118,8 +120,8 @@ sub execute($$@) {
 
         my $klee_start_time = time;
         $status = system("$KLEE $program @args") >> 8;
-        my $klee_end_time = time;
-        print "BipathTime(klee): `($klee_end_time - $klee_start_time)`" if $with_time;
+        my $klee_time = time - $klee_start_time;
+        print "BipathTime(klee): $klee_time\n" if $with_time;
     }
     print "Exit code: $status\n" if $debug;
 }
@@ -128,16 +130,19 @@ sub bipath_is_cached($@) {
     my $program = shift @_;
     my @args = @_;
 
-    my $bipath_start_time = time;
+    my $kleaver_start_time = time;
 
     # slurp in all test data from previous symbolic runs
-    for my $dir (glob "/klee-out-*") {
+    for my $dir (glob "klee-out-*") {
         print "processing directory $dir\n" if $debug;
         my $TEMP_DIR = "/tmp/bipath-temp";
 
         # helper: convert query form
         unlink (glob ("$TEMP_DIR/*"));
+        my $bipath_start_time = time;
         system("$BIPATH_HELPER $dir $TEMP_DIR");
+        my $bipath_time = time - $bipath_start_time;
+        print "BipathTime(bipath): $bipath_time\n" if $with_time;
         
         for my $file (glob "$TEMP_DIR/*.pc") {
             print "    processing file $file\n" if $debug;
@@ -250,8 +255,8 @@ sub bipath_is_cached($@) {
                         print "            kleaver says '$1'\n";
                         if($1 eq 'VALID') {
                             print "*** RUNNING NATIVE\n" if $debug;
-                            my $bipath_end_time = time;
-                            print "BipathTime(bipath): `($bipath_end_time - $bipath_start_time)`" if $with_time;
+                            my $kleaver_time = time - $kleaver_start_time;
+                            print "BipathTime(kleaver): $kleaver_time\n" if $with_time;
                             return 1;   # success! satisfies the constraints
                         }
                     }
@@ -261,8 +266,8 @@ sub bipath_is_cached($@) {
         }
     }
 
-    my $bipath_end_time = time;
-    print "BipathTime(bipath): `($bipath_end_time - $bipath_start_time)`" if $with_time;
+    my $kleaver_time = time - $kleaver_start_time;
+    print "BipathTime(kleaver): $kleaver_time\n" if $with_time;
     print "*** RUNNING IN KLEE\n" if $debug;
     return 0;
 }
